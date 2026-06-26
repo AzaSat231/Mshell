@@ -1,10 +1,11 @@
-# Version 1
-# Program use real fork, run on external command by itself
+# Version 2
+# Program now have cd logic and checking all the exceptions
 
 import time, os
 
 cmd_list = ['cd', 'pwd', 'exit', 'echo', 'export', 'unset', 'env', 'history', 'kill']
 
+PATH = os.getcwd()
 
 class Command:
     def __init__(self):
@@ -24,21 +25,40 @@ class Command:
 
         self.set_cmd(self.args[0])
 
-        print(self.file, self.args)
-
     def execute_command(self):
+        try:
+            if self.file == 'exit':
+                return False
+            elif self.file == 'cd':
+                if len(self.args) == 1:
+                    self.set_argv(os.environ.get('HOME'))
+                os.chdir(self.args[1])
+                return True
+            
+            pid = os.fork()
 
-        pid = os.fork()
-
-        if pid == 0:
-            os.execvp(self.file, self.args)
-        else:
+            if pid == 0:
+                self.instructions_exec()
+            else:
+                os.waitpid(pid, 0)
+        except FileNotFoundError:
+            print(f'{self.args[1]}: No such file directory found')
+        finally:
             self.__init__()
 
-        time.sleep(1)
-
         return True
+    
+    def instructions_exec(self):
+        try:
+            os.execvp(self.file, self.args)
+            os._exit(0)
+        except FileNotFoundError:
+            print(f'Command {self.file} is not found')
+            os._exit(127)
 
+
+
+            
  
 if __name__ == "__main__":
     cmd = Command()
@@ -46,10 +66,12 @@ if __name__ == "__main__":
     exit = True
 
     while (exit != False):
-
-        print('mshell> ', end='')
-        output = input()
-
-        cmd.set_input(output)
-
-        exit = cmd.execute_command()
+        try:
+            output = input('mshell> ')
+            if output != '':
+                cmd.set_input(output)
+                exit = cmd.execute_command()
+        except EOFError:
+            break
+        except KeyboardInterrupt:
+            break

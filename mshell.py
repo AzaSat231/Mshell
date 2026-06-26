@@ -1,5 +1,5 @@
 # Version 1
-# Program use real forkk
+# Program use real fork, run on external command by itself
 
 import time, os
 

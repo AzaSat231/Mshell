@@ -11,8 +11,17 @@ class Command:
     def __init__(self):
         self.file = ''
         self.args = []
+        self.env_table = dict(
+            HOME = os.environ.get('HOME'),
+            PATH = os.environ.get('PATH'),
+            PS1 = 'mshell>'
+        )
+    
+    def init_vals(self):
+        self.file = ''
+        self.args = []
 
-    def set_cmd(self, cmd):
+    def set_file(self, cmd):
         self.file = cmd
     
     def set_argv(self, argv):
@@ -23,7 +32,14 @@ class Command:
 
         self.args = cmd_line
 
-        self.set_cmd(self.args[0])
+        self.set_file(self.args[0])
+
+    def set_env_table(self): 
+        self.env_table.update({f'{self.file}' : f'{self.args[2]}'})
+        print(self.env_table)
+
+    def get_env_table(self, val):
+        return self.env_table.get(val)
 
     def execute_command(self):
         try:
@@ -31,8 +47,11 @@ class Command:
                 return False
             elif self.file == 'cd':
                 if len(self.args) == 1:
-                    self.set_argv(os.environ.get('HOME'))
+                    self.set_argv(self.env_table['HOME'])
                 os.chdir(self.args[1])
+                return True
+            elif self.args[1] == '=' and not self.file.isdigit():
+                self.set_env_table()
                 return True
             
             pid = os.fork()
@@ -43,8 +62,10 @@ class Command:
                 os.waitpid(pid, 0)
         except FileNotFoundError:
             print(f'{self.args[1]}: No such file directory found')
+        except IndexError:
+            print(f'{self.file}: command not found')
         finally:
-            self.__init__()
+            self.init_vals()
 
         return True
     
@@ -53,7 +74,7 @@ class Command:
             os.execvp(self.file, self.args)
             os._exit(0)
         except FileNotFoundError:
-            print(f'Command {self.file} is not found')
+            print(f'{self.file}: command not found')
             os._exit(127)
 
 
@@ -67,11 +88,13 @@ if __name__ == "__main__":
 
     while (exit != False):
         try:
-            output = input('mshell> ')
+            prompt_name = cmd.get_env_table('PS1')
+
+            output = input(f'{prompt_name} ')
             if output != '':
                 cmd.set_input(output)
                 exit = cmd.execute_command()
         except EOFError:
             break
         except KeyboardInterrupt:
-            break
+            print()
